@@ -1,0 +1,12 @@
+{
+    "compilerOptions": {
+        "target": "es6",
+    },
+    "include": [
+        "src/**/*"
+    ],
+    "exclude": [
+        ".git",
+        "node_modules"
+    ]
+}

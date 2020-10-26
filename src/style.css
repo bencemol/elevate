@@ -1,0 +1,172 @@
+:root {
+  --raster: 48px;
+  --floor-height: 4;
+  --elevator-pos: calc(2 * var(--raster));
+  --elevator-delay: 1;
+  /* --elevator-pos: 0; */
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-size: 100%;
+}
+
+button:not(:focus-visible) {
+  outline: none;
+}
+
+button {
+  cursor: pointer;
+}
+
+main {
+  margin: var(--raster) 0;
+  min-height: inherit;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: calc(var(--floor-height) * var(--raster));
+}
+
+main * {
+  transform-style: preserve-3d;
+  -webkit-transform-style: preserve-3d;
+  position: absolute;
+}
+
+.floor {
+  width: calc(3 * var(--raster));
+  height: calc(3 * var(--raster));
+  background-size: var(--raster) var(--raster);
+  background-color: #e5e5e5;
+  background-image: -webkit-linear-gradient(
+      hsla(0, 0%, 0%, 0.1) 2.5%,
+      transparent 2.5%,
+      transparent 97.5%,
+      hsla(0, 0%, 0%, 0.1) 97.5%
+    ),
+    -webkit-linear-gradient(left, hsla(0, 0%, 0%, 0.1) 2.5%, transparent 2.5%, transparent
+          97.5%, hsla(0, 0%, 0%, 0.1) 97.5%);
+  transform: rotateX(45deg) rotateZ(45deg);
+  box-shadow: 0 0 0 0.1em hsla(0, 0%, 0%, 0.2);
+  position: relative;
+  z-index: 20;
+}
+
+.floor.ground {
+  z-index: 10;
+}
+
+.elevator,
+.elevator:after,
+.elevator:before {
+  position: absolute;
+  background-color: hsla(0, 0%, 0%, 0.3);
+  box-shadow: inset 0 0 0 1px hsla(0, 0%, 0%, 0.1);
+  content: "";
+  float: left;
+  width: var(--raster);
+  height: var(--raster);
+}
+
+/* top */
+.elevator {
+  margin: var(--raster) calc(-1 * var(--raster) - 1px);
+  position: relative;
+  transform: translateZ(var(--elevator-pos));
+  background-color: #c2c2c2;
+  transition: transform ease-in-out calc(var(--elevator-delay) * 2s);
+  transform-origin: 100% 100%;
+  z-index: 1;
+}
+
+/* left */
+.elevator:after {
+  height: calc(2 * var(--raster));
+  transform: rotateX(-90deg)
+    translate3d(0, calc(2 * var(--raster)), calc(-1 * var(--raster)));
+  transform-origin: 100% 100%;
+  background-color: #b2b2b2;
+}
+
+/* right */
+.elevator:before {
+  width: calc(2 * var(--raster));
+  transform: rotateY(90deg)
+    translate3d(calc(2 * var(--raster)), 0, calc(-1 * var(--raster)));
+  transform-origin: 100% 0;
+  background-color: #a2a2a2;
+}
+
+.wall {
+  position: relative;
+  width: calc(3 * var(--raster));
+  height: calc(3 * var(--raster));
+  transform: rotateX(-90deg) rotateY(90deg)
+    translate3d(0, calc(-3 * var(--raster)), calc(-3 * var(--raster)));
+  transform-origin: 100% 0;
+  display: flex;
+  align-items: flex-end;
+}
+
+.doors {
+  margin: 0 auto;
+  position: relative;
+  width: calc(var(--raster));
+  height: calc(2 * var(--raster));
+  overflow: hidden;
+  z-index: 5;
+}
+
+.doors:after,
+.doors:before {
+  content: "";
+  position: absolute;
+  width: calc(0.5 * var(--raster));
+  height: 100%;
+  background: rgb(158, 158, 158);
+  background: linear-gradient(
+    0deg,
+    rgba(158, 158, 158, 1) 0%,
+    rgba(235, 235, 235, 1) 85%
+  );
+  transition: transform ease-in-out 1.2s;
+}
+
+/* right */
+.doors:after {
+  transform: translateX(100%);
+}
+
+/* right */
+.doors.open:after {
+  transform: translateX(200%);
+}
+
+/* left */
+.doors.open:before {
+  transform: translateX(-100%);
+}
+
+.call {
+  position: relative;
+  font-size: 2em;
+  padding: 0;
+  margin: 0.5em auto;
+  background: none;
+  border: none;
+}
+
+.elevator .controls {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transform: rotateY(90deg) rotateZ(-90deg) translate3d(calc(-1 * var(--raster)), 0, 0);
+}
+
+.elevator .controls button {
+  position: relative;
+  font-size: 1.2em;
+}
