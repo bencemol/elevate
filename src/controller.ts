@@ -10,15 +10,24 @@ export class Controller {
   }
 
   private moveElevator = ($event: ElevatorEvent) => {
-    if (buildingModel.floors[this.prevFloor].door.isClosed) {
-      if (this.callQueue.length > 0) {
-        moveTo(this.callQueue[0]);
+    if (
+      $event.type === 'close' ||
+      $event.target === 'internalButton' ||
+      $event.target === 'externalButton'
+    ) {
+      if (
+        // TODO buggy here as well
+        buildingModel.floors[buildingModel.elevator.currentFloor].door.isClosed
+      ) {
+        if (this.callQueue.length > 0) {
+          moveTo(this.callQueue[0]);
+        }
       }
     }
   };
 
   private openDoor = ($event: ElevatorEvent) => {
-    if ($event.target === 'elevator') {
+    if ($event.target === 'elevator' && $event.type === 'stop') {
       operateDoor($event.floor, 'open');
       this.prevFloor = this.callQueue.shift();
       setTimeout(() => operateDoor($event.floor, 'close'), 2000);
@@ -43,11 +52,19 @@ export class Controller {
         (floor > this.prevFloor && floor < this.callQueue[0]) ||
         (floor < this.prevFloor && floor > this.callQueue[0])
       ) {
-        this.callQueue.unshift(floor);
-      } else {
+        if (
+          // TODO check currentFloor if it was passed already with direction
+          buildingModel.elevator.currentFloor !== floor &&
+          floor !== this.callQueue[this.callQueue.length - 1]
+        ) {
+          this.callQueue.unshift(floor);
+          return;
+        }
+      }
+      if (!this.callQueue.includes(floor)) {
         this.callQueue.push(floor);
       }
-      console.log(`queue: ${this.callQueue}`);
+      console.log(this.callQueue);
     }
   };
 

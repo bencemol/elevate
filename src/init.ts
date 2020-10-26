@@ -1,7 +1,15 @@
+const root = document.documentElement;
+
 const raster = 48; //px
 const floorHeight = 4;
+
 let nextFloor = 0;
-let prevFloor = 0;
+let prevFloor = nextFloor;
+
+let currentPos = 2 * raster;
+let targetPos = currentPos;
+
+let animationId;
 
 const floorTemplate = `
 <div class="floor">
@@ -19,7 +27,10 @@ const controlTemplate = (floor: number) => `
 
 export interface Building {
   floors: Floor[];
-  elevator: () => HTMLElement;
+  elevator: {
+    element: () => HTMLElement;
+    currentFloor: number;
+  };
   controls: () => HTMLElement[];
 }
 
@@ -35,12 +46,15 @@ export interface Floor {
 export interface ElevatorEvent {
   target: 'door' | 'externalButton' | 'elevator' | 'internalButton';
   floor: number;
-  direction?: 'up' | 'down' | 'open' | 'close';
+  type?: 'up' | 'down' | 'open' | 'close' | 'stop' | 'approach';
 }
 
 export const buildingModel: Building = {
   floors: [],
-  elevator: () => document.querySelector('.elevator'),
+  elevator: {
+    element: () => document.querySelector('.elevator'),
+    currentFloor: nextFloor,
+  },
   controls: () => Array.from(document.querySelectorAll('.controls button')),
 };
 
@@ -58,16 +72,13 @@ export function build(
 
 export function moveTo(floor: number) {
   if (floor !== prevFloor) {
-    const root = document.documentElement;
-    const elevatorPos =
+    const pos =
       (floor + 1) * 2 * raster + floor * 2 * floorHeight * raster - floor * 5;
-    root.style.setProperty('--elevator-pos', `${elevatorPos}px`);
-    prevFloor = nextFloor;
+    targetPos = pos;
+    cancelAnimation();
+    animationId = requestAnimationFrame(animationLoop);
+    prevFloor = floor;
     nextFloor = floor;
-    root.style.setProperty(
-      '--elevator-delay',
-      Math.abs(prevFloor - nextFloor).toString()
-    );
   }
 }
 
@@ -92,7 +103,9 @@ function createFloors(numberOfFloors: number) {
 }
 
 function createControls(building: Building) {
-  const controls = building.elevator().querySelector('.elevator .controls');
+  const controls = building.elevator
+    .element()
+    .querySelector('.elevator .controls');
   building.floors.forEach(
     (_, i) => (controls.innerHTML = controlTemplate(i) + controls.innerHTML)
   );
@@ -115,29 +128,37 @@ function initCallbacks(callback: ($event: ElevatorEvent) => any) {
     floor
       .callDown()
       .addEventListener('click', () =>
-        callback({ target: 'externalButton', floor: i, direction: 'down' })
+        callback({ target: 'externalButton', floor: i, type: 'down' })
       );
     floor
       .callUp()
       .addEventListener('click', () =>
-        callback({ target: 'externalButton', floor: i, direction: 'up' })
+        callback({ target: 'externalButton', floor: i, type: 'up' })
       );
     floor.door.element().addEventListener('transitionend', (ev) => {
       if (ev.pseudoElement === '::after') {
         if (!floor.door.element().classList.contains('open')) {
           floor.door.isClosed = true;
-          callback({ target: 'door', floor: i, direction: 'close' });
+          callback({ target: 'door', floor: i, type: 'close' });
         } else {
           floor.door.isClosed = false;
-          callback({ target: 'door', floor: i, direction: 'open' });
+          callback({ target: 'door', floor: i, type: 'open' });
         }
       }
     });
   });
-  buildingModel
-    .elevator()
-    .addEventListener('transitionend', () =>
-      callback({ target: 'elevator', floor: nextFloor })
+  const elevator = buildingModel.elevator;
+  elevator.element().addEventListener('approach', () =>
+    callback({
+      target: 'elevator',
+      floor: elevator.currentFloor,
+      type: 'approach',
+    })
+  );
+  elevator
+    .element()
+    .addEventListener('stop', () =>
+      callback({ target: 'elevator', floor: nextFloor, type: 'stop' })
     );
   buildingModel
     .controls()
@@ -146,4 +167,61 @@ function initCallbacks(callback: ($event: ElevatorEvent) => any) {
         callback({ target: 'internalButton', floor: controls.length - 1 - i })
       )
     );
+}
+
+function checkFloorIntersections() {
+  const floors = Array.from(document.querySelectorAll('.floor')).reverse();
+  const elevator = buildingModel.elevator;
+  const elevatorRect = elevator.element().getBoundingClientRect();
+  floors.forEach((floor, i) => {
+    const wallRect = floor.querySelector('.wall').getBoundingClientRect();
+    if (intersectRect(wallRect, elevatorRect) && elevator.currentFloor !== i) {
+      elevator.currentFloor = i;
+      elevator.element().dispatchEvent(new Event('approach'));
+    }
+  });
+}
+
+function animationLoop() {
+  const distance = Math.abs(targetPos - currentPos);
+  if (distance > 0.2) {
+    let dir: 1 | -1 = 1;
+    if (targetPos < currentPos) {
+      dir = -1;
+    }
+    const velocity = distance < raster ? distance / 12 : 5;
+    setElevatorPos(currentPos + dir * velocity);
+    animationId = requestAnimationFrame(animationLoop);
+    checkFloorIntersections();
+  } else if (animationId) {
+    stopElevator();
+  }
+}
+
+function setElevatorPos(position: number) {
+  currentPos = position;
+  root.style.setProperty('--elevator-pos', `${currentPos}px`);
+}
+
+function stopElevator() {
+  currentPos = targetPos;
+  setElevatorPos(currentPos);
+  buildingModel.elevator.element().dispatchEvent(new Event('stop'));
+  cancelAnimation();
+}
+
+function cancelAnimation() {
+  if (animationId) {
+    cancelAnimationFrame(animationId);
+    animationId = undefined;
+  }
+}
+
+function intersectRect(rectA: DOMRect, rectB: DOMRect): boolean {
+  return !(
+    rectB.left >= rectA.right ||
+    rectB.right <= rectA.left ||
+    rectB.top >= rectA.bottom ||
+    rectB.bottom <= rectA.top
+  );
 }
